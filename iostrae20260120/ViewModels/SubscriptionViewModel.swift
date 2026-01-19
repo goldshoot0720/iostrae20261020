@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 class SubscriptionViewModel: ObservableObject {
     @Published var subscriptions: [Subscription] = []

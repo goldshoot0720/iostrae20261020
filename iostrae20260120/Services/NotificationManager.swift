@@ -21,9 +21,15 @@ class NotificationManager {
         
         let calendar = Calendar.current
         let now = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        dateFormatter.timeStyle = .none
+        
+        var immediateNotificationDelay: TimeInterval = 2
         
         for sub in subscriptions {
             guard let nextDate = sub.nextDateObject else { continue }
+            let formattedDate = dateFormatter.string(from: nextDate)
             
             // Step 5: Schedule 6 AM notification 3 days before
             if let triggerDate = calendar.date(byAdding: .day, value: -3, to: nextDate) {
@@ -35,7 +41,7 @@ class NotificationManager {
                 if let scheduledDate = calendar.date(from: dateComponents), scheduledDate > now {
                     let content = UNMutableNotificationContent()
                     content.title = "Subscription Renewal Alert"
-                    content.body = "\(sub.name) is renewing on \(sub.nextdate). Price: $\(sub.price)"
+                    content.body = "\(sub.name) is renewing on \(formattedDate). Price: $\(sub.price)"
                     content.sound = .default
                     
                     let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
@@ -51,17 +57,28 @@ class NotificationManager {
             
             // Step 6: Immediate notification on app launch if within 3 days
             let daysUntil = calendar.dateComponents([.day], from: now, to: nextDate).day ?? 100
+            print("Checking subscription: \(sub.name), daysUntil: \(daysUntil)")
+            
             if daysUntil >= 0 && daysUntil <= 3 {
+                print("Scheduling immediate notification for \(sub.name)")
                 let content = UNMutableNotificationContent()
                 content.title = "Expiring Soon: \(sub.name)"
-                content.body = "Renewing in \(daysUntil) days (\(sub.nextdate))."
+                content.body = "Renewing in \(daysUntil) days (\(formattedDate))."
                 content.sound = .default
                 
-                // Trigger in 2 seconds
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+                // Trigger with staggered delay
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: immediateNotificationDelay, repeats: false)
                 let request = UNNotificationRequest(identifier: "\(sub.id)-immediate", content: content, trigger: trigger)
                 
-                UNUserNotificationCenter.current().add(request)
+                UNUserNotificationCenter.current().add(request) { error in
+                    if let error = error {
+                        print("Error adding immediate notification: \(error)")
+                    } else {
+                        print("Immediate notification scheduled for \(sub.name) in \(immediateNotificationDelay) seconds")
+                    }
+                }
+                
+                immediateNotificationDelay += 2 // Stagger notifications by 2 seconds
             }
         }
     }
