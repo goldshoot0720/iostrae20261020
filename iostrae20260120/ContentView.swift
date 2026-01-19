@@ -42,5 +42,6 @@ struct ContentView: View {
                 viewModel.fetchSubscriptions()
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
