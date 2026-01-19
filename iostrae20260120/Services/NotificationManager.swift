@@ -31,25 +31,37 @@ class NotificationManager {
             guard let nextDate = sub.nextDateObject else { continue }
             let formattedDate = dateFormatter.string(from: nextDate)
             
-            // Step 5: Schedule 6 AM notification 3 days before
-            if let triggerDate = calendar.date(byAdding: .day, value: -3, to: nextDate) {
-                var dateComponents = calendar.dateComponents([.year, .month, .day], from: triggerDate)
-                dateComponents.hour = 6
-                dateComponents.minute = 0
-                dateComponents.second = 0
-                
-                if let scheduledDate = calendar.date(from: dateComponents), scheduledDate > now {
-                    let content = UNMutableNotificationContent()
-                    content.title = "Subscription Renewal Alert"
-                    content.body = "\(sub.name) is renewing on \(formattedDate). Price: $\(sub.price)"
-                    content.sound = .default
+            // Step 5: Schedule 6 AM notification for expiring items (Last 3 days)
+            // We need to schedule notifications for: 
+            // - 3 days before (Already implemented)
+            // - 2 days before
+            // - 1 day before
+            // - The day of expiry
+            
+            // Check if we are within the 3-day window or if the window is in the future
+            for offset in 0...3 {
+                if let triggerDate = calendar.date(byAdding: .day, value: -offset, to: nextDate) {
+                    var dateComponents = calendar.dateComponents([.year, .month, .day], from: triggerDate)
+                    dateComponents.hour = 6
+                    dateComponents.minute = 0
+                    dateComponents.second = 0
                     
-                    let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
-                    let request = UNNotificationRequest(identifier: sub.id, content: content, trigger: trigger)
-                    
-                    UNUserNotificationCenter.current().add(request) { error in
-                        if let error = error {
-                            print("Error scheduling notification: \(error)")
+                    // Only schedule if the time is in the future
+                    if let scheduledDate = calendar.date(from: dateComponents), scheduledDate > now {
+                        let content = UNMutableNotificationContent()
+                        content.title = "Subscription Renewal Alert"
+                        content.body = "\(sub.name) is renewing on \(formattedDate) (\(offset == 0 ? "Today" : "\(offset) days left")). Price: $\(sub.price)"
+                        content.sound = .default
+                        
+                        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+                        let request = UNNotificationRequest(identifier: "\(sub.id)-6am-\(offset)", content: content, trigger: trigger)
+                        
+                        UNUserNotificationCenter.current().add(request) { error in
+                            if let error = error {
+                                print("Error scheduling 6AM notification: \(error)")
+                            } else {
+                                print("Scheduled 6AM notification for \(sub.name) on \(dateComponents.year!)/\(dateComponents.month!)/\(dateComponents.day!)")
+                            }
                         }
                     }
                 }
